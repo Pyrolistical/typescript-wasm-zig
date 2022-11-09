@@ -1,14 +1,6 @@
-# zig-wasm-canvas
+# typescript-wasm-zig
 
-![](screenshot.png)
-
-Demo showing how to call HTML canvas from zig via WebAssembly.
-
-### Features
-
-- Shim that makes it appear canvas ctx is in zig
-- Shows how to pass strings from zig to JavaScript and vice versa
-- @panic in zig throws an error in JavaScript
+Demo showing how to pass a Person between TypeScript and Zig via WebAssembly.
 
 ### Setup
 
