@@ -10,7 +10,7 @@ const Person = extern struct {
     gpa: f32,
 };
 
-export fn sendPersonToZig(person: *Person) void {
+export fn sendPerson(person: *Person) void {
     defer allocator.destroy(person);
     defer allocator.free(std.mem.span(person.name));
 
@@ -20,7 +20,7 @@ export fn sendPersonToZig(person: *Person) void {
     });
 }
 
-export fn receivePersonFromZig() *Person {
+export fn receivePerson() *Person {
     var alice = allocator.create(Person) catch
         @panic("failed to allocate Person");
     alice.name = allocator.dupeZ(u8, "Alice") catch

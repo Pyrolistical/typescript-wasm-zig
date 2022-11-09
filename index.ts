@@ -15,21 +15,15 @@ const { exports } = await WebAssembly.instantiate(module, {
 	},
 });
 
-const {
-	memory,
-	sendPersonToZig,
-	receivePersonFromZig,
-	allocUint8,
-	free,
-	destoryPerson,
-} = exports as {
-	memory: WebAssembly.Memory;
-	sendPersonToZig(personPointer: number): void;
-	receivePersonFromZig(): number;
-	allocUint8(length: number): number;
-	free(pointer: number, length: number): void;
-	destoryPerson(pointer: number): void;
-};
+const { memory, sendPerson, receivePerson, allocUint8, free, destoryPerson } =
+	exports as {
+		memory: WebAssembly.Memory;
+		sendPerson(personPointer: number): void;
+		receivePerson(): number;
+		allocUint8(length: number): number;
+		free(pointer: number, length: number): void;
+		destoryPerson(pointer: number): void;
+	};
 
 const sizeOfUint32 = Uint32Array.BYTES_PER_ELEMENT;
 const sizeOfNullByte = Uint8Array.BYTES_PER_ELEMENT;
@@ -110,8 +104,8 @@ const bob = {
 	gpa: 3.6,
 };
 const bobPointer = encodePerson(bob);
-sendPersonToZig(bobPointer);
+sendPerson(bobPointer);
 
-const alicePointer = receivePersonFromZig();
+const alicePointer = receivePerson();
 const alice = decodePerson(alicePointer);
 console.log(`From Zig in TS: ${alice.name} has a GPA of ${alice.gpa}`);
