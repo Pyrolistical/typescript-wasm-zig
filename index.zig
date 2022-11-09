@@ -5,35 +5,29 @@ const allocator = std.heap.page_allocator;
 
 const env = @import("env.zig");
 
-const ExternPerson = extern struct {
+const Person = extern struct {
     name: [*:0]const u8,
     gpa: f32,
 };
 
-const Person = struct {
-    name: []const u8,
-    gpa: f32,
-};
+export fn sendPersonToZig(person: *Person) void {
+    defer allocator.destroy(person);
+    defer allocator.free(std.mem.span(person.name));
 
-export fn _sendPersonFromTS(person_pointer: *ExternPerson) void {
-    defer allocator.free(@ptrCast([*]ExternPerson, person_pointer)[0..1]);
-    defer allocator.free(person_pointer.name[0..std.mem.len(person_pointer.name)]);
-    const person = Person{
-        .name = std.mem.span(person_pointer.name),
-        .gpa = person_pointer.gpa,
-    };
-    env.consoleLog("{s} has a GPA of {d:.1}", .{ person.name, person.gpa });
+    env.consoleLog("From TS in Zig: {s} has a GPA of {d:.1}", .{
+        person.name,
+        person.gpa,
+    });
 }
 
-export fn start() void {
-    const name: [:0]const u8 = "Alice";
-    const alice = ExternPerson{
-        .name = name.ptr,
-        .gpa = 4.0,
-    };
-    receivePersonFromZig(&alice);
+export fn receivePersonFromZig() *Person {
+    var alice = allocator.create(Person) catch
+        @panic("failed to allocate Person");
+    alice.name = allocator.dupeZ(u8, "Alice") catch
+        @panic("failed to allocate Alice name");
+    alice.gpa = 4.0;
+    return alice;
 }
-extern "app" fn receivePersonFromZig(person_pointer: *const ExternPerson) void;
 
 // Calls to @panic are sent here.
 // See https://ziglang.org/documentation/master/#panic
@@ -47,6 +41,11 @@ export fn allocUint8(length: u32) [*]const u8 {
     return slice.ptr;
 }
 
-export fn free(pointer: [*:0]u8) void {
-    allocator.free(std.mem.span(pointer));
+export fn free(pointer: u32, length: u32) void {
+    const slice = @intToPtr([*]u8, pointer);
+    return allocator.free(slice[0..length]);
+}
+
+export fn destoryPerson(person_pointer: u32) void {
+    defer allocator.destroy(@intToPtr(*Person, person_pointer));
 }

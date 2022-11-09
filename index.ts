@@ -1,11 +1,35 @@
 import indexWasmUrl from "./index.wasm?url";
 
-type Person = {
-	name: string;
-	gpa: number;
-};
-
 const module = await WebAssembly.compileStreaming(fetch(indexWasmUrl));
+
+const { exports } = await WebAssembly.instantiate(module, {
+	env: {
+		_throwError(pointer: number, length: number) {
+			const message = decodeString(pointer, length);
+			throw new Error(message);
+		},
+		_consoleLog(pointer: number, length: number) {
+			const message = decodeString(pointer, length);
+			console.log(message);
+		},
+	},
+});
+
+const {
+	memory,
+	sendPersonToZig,
+	receivePersonFromZig,
+	allocUint8,
+	free,
+	destoryPerson,
+} = exports as {
+	memory: WebAssembly.Memory;
+	sendPersonToZig(personPointer: number): void;
+	receivePersonFromZig(): number;
+	allocUint8(length: number): number;
+	free(pointer: number, length: number): void;
+	destoryPerson(pointer: number): void;
+};
 
 const sizeOfUint32 = Uint32Array.BYTES_PER_ELEMENT;
 const sizeOfNullByte = Uint8Array.BYTES_PER_ELEMENT;
@@ -14,7 +38,11 @@ const sizeOfFloat32 = Float32Array.BYTES_PER_ELEMENT;
 const decodeNullTerminatedString = (pointer: number) => {
 	const slice = new Uint8Array(memory.buffer, pointer);
 	const length = slice.findIndex((value: number) => value === 0);
-	return decodeString(pointer, length);
+	try {
+		return decodeString(pointer, length);
+	} finally {
+		free(pointer, length);
+	}
 };
 
 const decodeString = (pointer: number, length: number) => {
@@ -36,24 +64,29 @@ const encodeNullTerminatedString = (string: string) => {
 };
 
 const decodePerson = (personPointer: number): Person => {
-	const namePointerSlice = new Uint32Array(memory.buffer, personPointer);
+	try {
+		const namePointerSlice = new Uint32Array(memory.buffer, personPointer, 1);
 
-	const name = decodeNullTerminatedString(namePointerSlice[0]!);
+		const namePointer = namePointerSlice[0]!;
+		const name = decodeNullTerminatedString(namePointer);
 
-	const gpaSlice = new Float32Array(
-		memory.buffer,
-		personPointer + sizeOfUint32,
-		1
-	);
-	const gpa = gpaSlice[0]!;
+		const gpaSlice = new Float32Array(
+			memory.buffer,
+			personPointer + sizeOfUint32,
+			1
+		);
+		const gpa = gpaSlice[0]!;
 
-	return { name, gpa };
+		return { name, gpa };
+	} finally {
+		destoryPerson(personPointer);
+	}
 };
 
 const encodePerson = ({ name, gpa }: Person) => {
-	const namePointer = encodeNullTerminatedString(name);
 	const personPointer = allocUint8(sizeOfUint32 + sizeOfFloat32);
 
+	const namePointer = encodeNullTerminatedString(name);
 	const namePointerSlice = new Uint32Array(memory.buffer, personPointer, 1);
 	namePointerSlice[0] = namePointer;
 
@@ -67,36 +100,18 @@ const encodePerson = ({ name, gpa }: Person) => {
 	return personPointer;
 };
 
-const { exports } = await WebAssembly.instantiate(module, {
-	app: {
-		receivePersonFromZig(personPointer: number) {
-			console.log("Received", decodePerson(personPointer), "from Zig");
-		},
-	},
-	env: {
-		_throwError(pointer: number, length: number) {
-			const message = decodeString(pointer, length);
-			throw new Error(message);
-		},
-		_consoleLog(pointer: number, length: number) {
-			const message = decodeString(pointer, length);
-			console.log(message);
-		},
-	},
-});
-
-const { memory, _sendPersonFromTS, allocUint8, start } = exports as {
-	memory: WebAssembly.Memory;
-	_sendPersonFromTS(personPointer: number): void;
-	allocUint8(length: number): number;
-	start(): void;
+type Person = {
+	name: string;
+	gpa: number;
 };
 
-_sendPersonFromTS(
-	encodePerson({
-		name: "Bob",
-		gpa: 3.6,
-	})
-);
+const bob = {
+	name: "Bob",
+	gpa: 3.6,
+};
+const bobPointer = encodePerson(bob);
+sendPersonToZig(bobPointer);
 
-start();
+const alicePointer = receivePersonFromZig();
+const alice = decodePerson(alicePointer);
+console.log(`From Zig in TS: ${alice.name} has a GPA of ${alice.gpa}`);
