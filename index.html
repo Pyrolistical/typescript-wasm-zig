@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Zig WASM Canvas demo</title>
+  <title>TypeScript WebAssembly Zig demo</title>
   <style>
     html,
     body {
@@ -19,120 +19,10 @@
     }
 
   </style>
-  <script type="module">
-    import indexWasmUrl from "./index.wasm?url"
-    const canvas = document.body.querySelector("canvas")
-    const ctx = canvas.getContext("2d")
-
-    const module = await WebAssembly.compileStreaming(fetch(indexWasmUrl))
-
-    const decodeString = (pointer, length) => {
-      const slice = new Uint8Array(
-        memory.buffer,
-        pointer,
-        length
-      )
-      return new TextDecoder().decode(slice)
-    }
-
-    const encodeString = (string) => {
-      const buffer = new TextEncoder().encode(string)
-      const pointer = allocUint8(buffer.length + 1)
-      const slice = new Uint8Array(
-        memory.buffer,
-        pointer,
-        buffer.length + 1
-      )
-      slice.set(buffer)
-      slice[buffer.length] = 0
-      return pointer
-    }
-
-    const {
-      exports: { memory, _draw, allocUint8, free },
-    } = await WebAssembly.instantiate(module, {
-      app: {
-        _allocPromptName(pointer, length) {
-          const message = decodeString(pointer, length)
-
-          const name = window.prompt(message) ?? "Human"
-
-          return encodeString(name)
-        },
-      },
-      env: {
-        _throwError(pointer, length) {
-          const message = decodeString(pointer, length)
-          throw new Error(message)
-        },
-        _consoleLog(pointer, length) {
-          const message = decodeString(pointer, length)
-          console.log(message)
-        },
-      },
-      ctx: {
-        save: ctx.save.bind(ctx),
-        restore: ctx.restore.bind(ctx),
-
-        translate(x, y) {
-          ctx.translate(x, y)
-        },
-        scale(x, y) {
-          ctx.scale(x, y)
-        },
-        rotate(angle) {
-          ctx.rotate(angle)
-        },
-
-        beginPath() {
-          ctx.beginPath()
-        },
-        moveTo(x, y) {
-          ctx.moveTo(x, y)
-        },
-        lineTo(x, y) {
-          ctx.lineTo(x, y)
-        },
-
-        _font(pointer, length) {
-          ctx.font = decodeString(pointer, length)
-        },
-
-        _fillStyle(pointer, length) {
-          ctx.fillStyle = decodeString(pointer, length)
-        },
-        _fillText(pointer, length, x, y) {
-          const text = decodeString(pointer, length)
-          ctx.fillText(text, x, y)
-        },
-        fill() {
-          ctx.fill()
-        },
-
-        lineWidth(width) {
-          ctx.lineWidth = width
-        },
-        _lineCap(pointer, length) {
-          ctx.lineCap = decodeString(pointer, length)
-        },
-        _strokeStyle(pointer, length) {
-          ctx.strokeStyle = decodeString(pointer, length)
-        },
-        _strokeText(pointer, length, x, y) {
-          const text = decodeString(pointer, length)
-          ctx.strokeText(text, x, y)
-        },
-        stroke() {
-          ctx.stroke()
-        },
-      },
-    })
-    _draw();
-  </script>
+  <script type="module" src="index.ts"></script>
 </head>
 
 <body>
-  <canvas width="800" height="800">Canvas required. Please use Chrome, Firefox, or Safari</canvas>
 </body>
 
 </html>

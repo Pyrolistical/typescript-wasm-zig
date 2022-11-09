@@ -1,5 +1,5 @@
 {
-  "name": "zig-wasm-canvas",
+  "name": "typescript-wasm-zig",
   "private": true,
   "type": "module",
   "scripts": {
