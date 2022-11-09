@@ -28,10 +28,11 @@ const { memory, sendPerson, receivePerson, allocUint8, free, destoryPerson } =
 const sizeOfUint32 = Uint32Array.BYTES_PER_ELEMENT;
 const sizeOfNullByte = Uint8Array.BYTES_PER_ELEMENT;
 const sizeOfFloat32 = Float32Array.BYTES_PER_ELEMENT;
+const nullByte = 0x00;
 
 const decodeNullTerminatedString = (pointer: number) => {
 	const slice = new Uint8Array(memory.buffer, pointer);
-	const length = slice.findIndex((value: number) => value === 0);
+	const length = slice.findIndex((value: number) => value === nullByte);
 	try {
 		return decodeString(pointer, length);
 	} finally {
@@ -46,14 +47,15 @@ const decodeString = (pointer: number, length: number) => {
 
 const encodeNullTerminatedString = (string: string) => {
 	const buffer = new TextEncoder().encode(string);
-	const pointer = allocUint8(buffer.length + 1);
+	const sizeOfNullTerminatedString = buffer.length + sizeOfNullByte;
+	const pointer = allocUint8(sizeOfNullTerminatedString);
 	const slice = new Uint8Array(
 		memory.buffer,
 		pointer,
-		buffer.length + sizeOfNullByte
+		sizeOfNullTerminatedString
 	);
 	slice.set(buffer);
-	slice[buffer.length] = 0;
+	slice[buffer.length] = nullByte;
 	return pointer;
 };
 
@@ -64,11 +66,8 @@ const decodePerson = (personPointer: number): Person => {
 		const namePointer = namePointerSlice[0]!;
 		const name = decodeNullTerminatedString(namePointer);
 
-		const gpaSlice = new Float32Array(
-			memory.buffer,
-			personPointer + sizeOfUint32,
-			1
-		);
+		const gpaPointer = personPointer + sizeOfUint32;
+		const gpaSlice = new Float32Array(memory.buffer, gpaPointer, 1);
 		const gpa = gpaSlice[0]!;
 
 		return { name, gpa };
@@ -78,17 +77,15 @@ const decodePerson = (personPointer: number): Person => {
 };
 
 const encodePerson = ({ name, gpa }: Person) => {
-	const personPointer = allocUint8(sizeOfUint32 + sizeOfFloat32);
+	const sizeOfPerson = sizeOfUint32 + sizeOfFloat32;
+	const personPointer = allocUint8(sizeOfPerson);
 
 	const namePointer = encodeNullTerminatedString(name);
 	const namePointerSlice = new Uint32Array(memory.buffer, personPointer, 1);
 	namePointerSlice[0] = namePointer;
 
-	const gpaSlice = new Float32Array(
-		memory.buffer,
-		personPointer + sizeOfUint32,
-		1
-	);
+	const gpaPointer = personPointer + sizeOfUint32;
+	const gpaSlice = new Float32Array(memory.buffer, gpaPointer, 1);
 	gpaSlice[0] = gpa;
 
 	return personPointer;
