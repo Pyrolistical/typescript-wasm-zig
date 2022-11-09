@@ -46,6 +46,11 @@ export fn free(pointer: u32, length: u32) void {
     return allocator.free(slice[0..length]);
 }
 
-export fn destoryPerson(person_pointer: u32) void {
-    defer allocator.destroy(@intToPtr(*Person, person_pointer));
+export fn destoryPerson(pointer: u32) void {
+    destroy(Person, pointer);
+}
+
+// can't export this directly
+fn destroy(comptime T: type, pointer: u32) void {
+    allocator.destroy(@intToPtr(*T, pointer));
 }
